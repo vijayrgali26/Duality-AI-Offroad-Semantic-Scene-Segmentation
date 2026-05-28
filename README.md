@@ -1,179 +1,258 @@
-# 🚀 Duality AI — Offroad Semantic Scene Segmentation
+# Duality AI Segmentation - IoU Improvement Pipeline
 
-### BigRock Exchange Hackathon Submission
+## 🎯 Project Overview
 
----
+This project implements a comprehensive IoU (Intersection over Union) improvement pipeline for semantic segmentation of off-road terrain using DINOv2 backbone and ConvNeXt-style segmentation head.
 
-## 📌 Overview
-
-This project implements a **semantic segmentation pipeline** for off-road environments using synthetic data generated from Duality AI’s Falcon platform.
-
-We trained deep learning models to classify **10 terrain classes** (trees, bushes, rocks, sky, etc.) to support **UGV autonomy**.
-
----
-
-## 🧠 Models Used
-
-- **DeepLabV3+ (ResNet-50 backbone)** ✅ _(Final Model)_
-- U-Net (baseline)
-- FCN (initial experimentation)
+### Current Performance
+- **Baseline Mean IoU**: 0.2794 (27.94%)
+- **Target Mean IoU**: 0.5-0.6 (50-60%)
+- **Status**: ✅ Training in progress with optimized pipeline
 
 ---
 
-## 📂 Project Structure
+## 🚀 Quick Start
 
-```
-hackathon/
-├── train.py
-├── test.py
-├── visualize.py
-├── evaluation_metrics.txt   ← ⭐ FINAL RESULTS FILE
-├── README.md
-├── ENV_SETUP/
-├── Offroad_Segmentation_Training_Dataset/
-├── Offroad_Segmentation_testImages/
-└── runs/
+### Run IoU Improvement Training
+```bash
+python run_iou_boost.py
 ```
 
----
+This will:
+1. Compute class weights from training data
+2. Create optimized data loaders
+3. Build DINOv2 + ConvNeXt model
+4. Train for 15 epochs with class-weighted loss
+5. Save best model to `iou_boost_output/best_model.pth`
 
-## ⚙️ Setup & Installation
+### Evaluate Current Model
+```bash
+# Quick evaluation (200 samples)
+python compute_quick_iou.py
 
-### Step 1 — Environment
-
-**Windows**
-
-```
-cd ENV_SETUP
-setup_env.bat
-conda activate EDU
-```
-
-**Mac/Linux**
-
-```
-cd ENV_SETUP
-bash setup_env.sh
-conda activate EDU
+# Full evaluation (all samples)
+python compute_current_iou.py
 ```
 
 ---
 
-### Step 2 — Dataset Placement
+## 📊 Model Architecture
+
+### Backbone: DINOv2-ViT-Small
+- **Parameters**: 22M (frozen)
+- **Embedding Dimension**: 384
+- **Patch Size**: 14×14
+- **Input Resolution**: 266×476 (aligned to patches)
+
+### Segmentation Head: ConvNeXt-Style Decoder
+- **Parameters**: 2.4M (trainable)
+- **Architecture**:
+  - 7×7 stem convolution (384 → 128 channels)
+  - Depthwise separable ConvNeXt block
+  - 1×1 classifier (128 → 11 classes)
+
+### Total Model
+- **Total Parameters**: 24.5M
+- **Trainable Parameters**: 2.4M (10%)
+- **Efficient Transfer Learning**: Only decoder is trained
+
+---
+
+## 🎓 Training Configuration
+
+### Hyperparameters
+```python
+Optimizer: AdamW
+Learning Rate: 0.001
+Weight Decay: 0.01
+Scheduler: CosineAnnealingLR
+Batch Size: 4
+Epochs: 15
+Loss: CrossEntropyLoss with class weights
+```
+
+### Class Weights (Inverse Frequency)
+- **Rare Classes** (Background, Flowers, Logs): 3.67x weight
+- **Common Classes** (Trees, Bushes, Grass, etc.): 0.10x weight
+- Addresses severe class imbalance in dataset
+
+---
+
+## 📈 Performance Improvements
+
+### Baseline Performance (Before)
+| Class | Name | IoU | Status |
+|-------|------|-----|--------|
+| 0 | Background | 0.0000 | ⚠️ POOR |
+| 1 | Trees | 0.4343 | ○ OK |
+| 2 | Lush Bushes | 0.4187 | ○ OK |
+| 3 | Dry Grass | 0.4797 | ○ OK |
+| 4 | Dry Bushes | 0.0134 | ⚠️ POOR |
+| 5 | Ground Clutter | 0.0014 | ⚠️ POOR |
+| 6 | Flowers | 0.1923 | ⚠️ POOR |
+| 7 | Logs | 0.0021 | ⚠️ POOR |
+| 8 | Rocks | 0.0194 | ⚠️ POOR |
+| 9 | Landscape | 0.5806 | ○ OK |
+| 10 | Sky | 0.9316 | ✓ GOOD |
+
+**Mean IoU**: 0.2794 (27.94%)
+
+### Expected Performance (After Training)
+- **Mean IoU**: 0.5-0.6 (50-60%) - **2x improvement**
+- **Poorly performing classes**: Boosted from <0.02 to 0.30-0.40
+- **Well-performing classes**: Maintained or improved
+
+---
+
+## 📁 Project Structure
 
 ```
-Offroad_Segmentation_Training_Dataset/
-├── train/
-├── val/
-
-Offroad_Segmentation_testImages/
-├── Color_Images/
-├── Segmentation/ (optional)
+Duality_AI_Segmentation/
+├── iou_pipeline/              # Core pipeline modules
+│   ├── analyzer.py           # Dataset analysis
+│   ├── editor.py             # Dataset augmentation
+│   ├── trainer.py            # Training orchestrator
+│   ├── evaluator.py          # Evaluation engine
+│   ├── models/
+│   │   ├── backbone.py       # DINOv2 loading
+│   │   └── segmentation_head.py  # ConvNeXt decoder
+│   ├── data/
+│   │   ├── dataset.py        # SegmentationDataset
+│   │   └── transforms.py     # Transform pipelines
+│   └── utils/
+│       ├── config.py         # Configuration management
+│       └── metrics.py        # Metric computation
+├── run_iou_boost.py          # Main training script
+├── compute_current_iou.py    # Full IoU evaluation
+├── compute_quick_iou.py      # Quick IoU estimation
+├── iou_boost_output/         # Training outputs
+│   ├── best_model.pth        # Best model checkpoint
+│   └── training_history.json # Training metrics
+└── README.md                 # This file
 ```
 
 ---
 
-## 🏋️ Training
+## 🔧 Key Features
 
-Run:
+### 1. Class-Weighted Training
+- Inverse frequency weighting for balanced learning
+- 3.67x weight for rare classes
+- Addresses severe class imbalance
 
-```
-python train.py \
-  --data_dir Offroad_Segmentation_Training_Dataset \
-  --run_dir runs/exp1 \
-  --epochs 30 \
-  --batch_size 4 \
-  --lr 0.0001
-```
+### 2. Optimized Architecture
+- DINOv2 pretrained backbone (frozen)
+- ConvNeXt-style decoder (trainable)
+- Efficient transfer learning
 
-### 📊 Training Results
+### 3. Advanced Training
+- AdamW optimizer with weight decay
+- Cosine annealing learning rate schedule
+- Best model tracking based on validation IoU
 
-```
-Final Val Loss:     1.0450
-Final Val IoU:      0.6145
-Final Val Dice:     0.3598
-Final Val Accuracy: 0.6294
-```
-
-### Outputs
-
-- Model weights
-- Loss curve
-- IoU curve
-- Training logs
+### 4. Comprehensive Evaluation
+- Per-class IoU monitoring
+- Training history logging
+- Quick and full evaluation modes
 
 ---
 
-## 🧪 Testing / Evaluation
+## 📊 Dataset Information
 
-Run:
+### Training Dataset
+- **Samples**: 2857 images
+- **Classes**: 11 terrain classes
+- **Resolution**: 480×270 (resized to 266×476 for DINOv2)
 
-```
-python test.py \
-  --weights runs/exp1/best_model.pth \
-  --test_dir Offroad_Segmentation_testImages \
-  --out_dir runs/test_out
-```
+### Validation Dataset
+- **Samples**: 317 images
+- **No augmentation**: Preserves original distribution
 
-### 📊 Test Results
-
-```
-Mean IoU: 0.6055
-```
-
----
-
-## 📊 Final Results File
-
-👉 All evaluation metrics are stored in:
-
-```
-evaluation_metrics.txt
+### Class Mapping
+```python
+{
+    0: Background,
+    1: Trees,
+    2: Lush Bushes,
+    3: Dry Grass,
+    4: Dry Bushes,
+    5: Ground Clutter,
+    6: Flowers,
+    7: Logs,
+    8: Rocks,
+    9: Landscape,
+    10: Sky
+}
 ```
 
 ---
 
-## 🎨 Visualization
+## 🛠️ Installation
 
+```bash
+pip install torch torchvision
+pip install albumentations
+pip install numpy pillow scipy matplotlib tqdm
 ```
-python visualize.py \
-  --rgb_dir Offroad_Segmentation_testImages \
-  --pred_dir runs/test_out/predictions \
-  --out_dir runs/test_out/viz_hc
+
+---
+
+## 📝 Usage
+
+### Train Model
+```bash
+python run_iou_boost.py
+```
+
+### Evaluate Model
+```bash
+# Quick (200 samples, ~3 min)
+python compute_quick_iou.py
+
+# Full (2857 samples, ~30 min)
+python compute_current_iou.py
+```
+
+### Use Trained Model
+```python
+import torch
+from iou_pipeline.models.backbone import load_dinov2_backbone
+from iou_pipeline.models.segmentation_head import SegmentationHeadConvNeXt
+
+# Load model
+backbone, _, _ = load_dinov2_backbone('dinov2_vits14', freeze=True)
+head = SegmentationHeadConvNeXt(384, 11, 34, 19)
+head.load_state_dict(torch.load('iou_boost_output/best_model.pth'))
+
+# Inference
+with torch.no_grad():
+    features = backbone.forward_features(images)
+    logits = head(features["x_norm_patchtokens"])
+    predictions = logits.argmax(dim=1)
 ```
 
 ---
 
-## 📈 Key Performance
+## 📊 Results
 
-- ✅ Mean IoU: **0.60+**
-- ⚡ Inference Speed: **< 50 ms/image (GPU)**
-- 📊 Accuracy: **~63% validation accuracy**
+### Training Outputs
+- **Best Model**: `iou_boost_output/best_model.pth`
+- **Training History**: `iou_boost_output/training_history.json`
 
----
-
-## 🧩 Techniques Used
-
-- Transfer Learning (ResNet-50 pretrained)
-- Data Augmentation
-- Mixed Precision Training (AMP)
-- Cosine Learning Rate Scheduler
-- DeepLabV3+ architecture
+### Expected Improvements
+- **2x Mean IoU**: 0.28 → 0.5-0.6
+- **Rare Classes**: <0.02 → 0.30-0.40
+- **Maintained**: Well-performing classes stay strong
 
 ---
 
-## 🔮 Future Improvements
+## 📚 References
 
-- Domain adaptation
-- Larger backbone (ResNet-101)
-- Class-balanced sampling
-- Self-supervised learning
+- **DINOv2**: [facebookresearch/dinov2](https://github.com/facebookresearch/dinov2)
+- **ConvNeXt**: [A ConvNet for the 2020s](https://arxiv.org/abs/2201.03545)
 
 ---
 
-## 🙌 Acknowledgment
+**Status**: ✅ Training in progress - Check `iou_boost_output/` for results!
 
-Duality AI × BigRock Exchange Hackathon
-Segmentation Track
-
----
+**Last Updated**: 2026-05-28
