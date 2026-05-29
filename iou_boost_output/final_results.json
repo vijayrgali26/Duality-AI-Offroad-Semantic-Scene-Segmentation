@@ -1,0 +1,20 @@
+{
+  "baseline_mean_iou": 0.2794,
+  "best_mean_iou_11_classes": 0.4473,
+  "best_mean_iou_present_classes": 0.4921,
+  "improvement_11_classes": 0.1679,
+  "feature": "DINOv2 vits14 last-4 layers -> PCA top-192 (of 384, ~97% var)",
+  "per_class_iou": {
+    "Background": 0.0,
+    "Trees": 0.6742,
+    "Lush Bushes": 0.5698,
+    "Dry Grass": 0.6006,
+    "Dry Bushes": 0.3817,
+    "Ground Clutter": 0.2471,
+    "Flowers": 0.4998,
+    "Logs": 0.1428,
+    "Rocks": 0.2966,
+    "Landscape": 0.55,
+    "Sky": 0.9581
+  }
+}
